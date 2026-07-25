@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import {
   Search, X, ArrowRight, Building2, SignpostBig, Sticker, Image,
   Printer, BriefcaseBusiness, Store, PartyPopper, PackageOpen, PanelsTopLeft,
-  Car, Gift, Settings2, Sparkles, CheckCircle2, MessageCircle, ChevronRight
+  Car, Gift, Settings2, Sparkles, CheckCircle2, MessageCircle, ChevronRight,
+  ChevronDown, SlidersHorizontal, Headphones
 } from "lucide-react";
 
 const WHATSAPP = "https://wa.me/5598984337544?text=";
@@ -205,16 +206,15 @@ function scoreProduct(item, rawQuery) {
 function ProductArtwork({ item }) {
   const category = categories.find((entry) => entry.id === item.category);
   const Icon = category?.icon || Printer;
-  const initials = item.name.split(" ").filter((word) => word.length > 2).slice(0, 2).map((word) => word[0]).join("");
+  const positions = ["center", "left", "right"];
+  const imageVariant = item.id.split("").reduce((total, character) => total + character.charCodeAt(0), 0);
+  const position = positions[imageVariant % positions.length];
   return (
-    <div className={`product-art tone-${category?.tone || "orange"}`} aria-hidden="true">
-      <div className="art-grid" />
-      <div className="art-glow" />
-      <div className="art-object">
-        <Icon size={48} strokeWidth={1.55} />
-        <span>{initials}</span>
-      </div>
-      <div className="art-tag">ÁREA X</div>
+    <div className={`product-art image-${position}`}>
+      <img src={`/products/${item.category}.webp`} alt={`${item.name} produzido pela Área X`} loading="lazy" />
+      <div className="art-shade" />
+      <span className="art-category"><Icon size={17} /> {category?.name}</span>
+      {item.featured && <span className="art-featured">Destaque</span>}
     </div>
   );
 }
@@ -224,8 +224,12 @@ function App() {
   const [category, setCategory] = useState("todos");
   const [niche, setNiche] = useState("todos");
   const [visibleCount, setVisibleCount] = useState(24);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const niches = useMemo(() => ["todos", ...Array.from(new Set(products.map((item) => item.niche))).sort()], []);
+  const niches = useMemo(() => {
+    const available = category === "todos" ? products : products.filter((item) => item.category === category);
+    return ["todos", ...Array.from(new Set(available.map((item) => item.niche))).sort()];
+  }, [category]);
 
   const ranked = useMemo(() => {
     return products
@@ -242,6 +246,17 @@ function App() {
   }, [ranked]);
 
   const resetFilters = () => { setQuery(""); setCategory("todos"); setNiche("todos"); setVisibleCount(24); };
+  const chooseCategory = (id) => {
+    setCategory(id);
+    setNiche("todos");
+    setVisibleCount(24);
+  };
+  const chooseNiche = (value) => {
+    setNiche(value);
+    setVisibleCount(24);
+    setFiltersOpen(false);
+    window.setTimeout(() => document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
   const askQuote = (name) => window.open(`${WHATSAPP}${encodeURIComponent(`Olá! Gostaria de solicitar um orçamento para ${name}.`)}`, "_blank", "noopener,noreferrer");
 
   return (
@@ -277,22 +292,61 @@ function App() {
         </section>
 
         <section className="category-section" id="categorias">
-          <div className="section-heading"><div><span className="section-kicker">Navegue por categoria</span><h2>Encontre exatamente o que precisa</h2></div><p>O catálogo foi organizado por finalidade para facilitar a escolha.</p></div>
-          <div className="category-grid">
-            {categories.map((entry) => { const Icon = entry.icon; const count = products.filter((item) => item.category === entry.id).length; return (
-              <button key={entry.id} className={`category-card ${category === entry.id ? "active" : ""}`} onClick={() => { setCategory(category === entry.id ? "todos" : entry.id); setNiche("todos"); setVisibleCount(24); document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" }); }}>
-                <span className={`category-icon tone-${entry.tone}`}><Icon size={23} /></span><span><b>{entry.name}</b><small>{count} opções</small></span><ChevronRight size={18} />
-              </button>
-            ); })}
+          <div className="category-intro">
+            <div>
+              <span className="section-kicker">Catálogo sob medida</span>
+              <h2>Escolha uma categoria e encontre seu nicho</h2>
+              <p>Abra o menu, selecione o tipo de produto e depois indique para qual segmento você precisa.</p>
+            </div>
+            <button className="category-trigger" onClick={() => setFiltersOpen((open) => !open)} aria-expanded={filtersOpen} aria-controls="filter-panel">
+              <SlidersHorizontal size={21} />
+              Categorias e nichos
+              <ChevronDown className={filtersOpen ? "rotate" : ""} size={20} />
+            </button>
+          </div>
+          <div className="category-stats" aria-label="Resumo do catálogo">
+            <span><b>{products.length}+</b> produtos e serviços</span>
+            <span><b>13</b> categorias completas</span>
+            <span><b>100%</b> atendimento personalizado</span>
           </div>
         </section>
 
         <section className="catalog" id="produtos">
           <div className="section-heading catalog-heading"><div><span className="section-kicker">Produtos e serviços</span><h2>{query ? `Resultados para “${query}”` : category !== "todos" ? categories.find((entry) => entry.id === category)?.name : "Soluções em destaque"}</h2></div><p>{ranked.length} {ranked.length === 1 ? "resultado encontrado" : "resultados encontrados"}</p></div>
-          <div className="catalog-tools">
-            <div className="filter-row"><button className={category === "todos" ? "filter active" : "filter"} onClick={() => setCategory("todos")}>Todos</button>{categories.map((entry) => <button key={entry.id} className={category === entry.id ? "filter active" : "filter"} onClick={() => { setCategory(entry.id); setVisibleCount(24); }}>{entry.name}</button>)}</div>
-            <div className="select-row"><label><span>Filtrar por segmento</span><select value={niche} onChange={(event) => { setNiche(event.target.value); setVisibleCount(24); }}>{niches.map((entry) => <option key={entry} value={entry}>{entry === "todos" ? "Todos os segmentos" : entry}</option>)}</select></label></div>
+          <div className="catalog-bar">
+            <button className="open-filters" onClick={() => setFiltersOpen((open) => !open)} aria-expanded={filtersOpen}>
+              <SlidersHorizontal size={18} /> Filtrar catálogo
+              <ChevronDown className={filtersOpen ? "rotate" : ""} size={18} />
+            </button>
+            <div className="active-filters">
+              <span>{category === "todos" ? "Todas as categorias" : categories.find((entry) => entry.id === category)?.name}</span>
+              {niche !== "todos" && <span>{niche}</span>}
+              {(category !== "todos" || niche !== "todos" || query) && <button onClick={resetFilters}>Limpar filtros</button>}
+            </div>
           </div>
+
+          {filtersOpen && <div className="filter-panel" id="filter-panel">
+            <div className="filter-panel-head"><div><span className="section-kicker">Passo 1</span><h3>O que você procura?</h3></div><button onClick={() => setFiltersOpen(false)} aria-label="Fechar filtros"><X size={20} /></button></div>
+            <div className="category-grid">
+              <button className={`category-card ${category === "todos" ? "active" : ""}`} onClick={() => chooseCategory("todos")}>
+                <span className="category-icon tone-orange"><Sparkles size={22} /></span><span><b>Ver tudo</b><small>{products.length} opções</small></span><ChevronRight size={18} />
+              </button>
+              {categories.map((entry) => { const Icon = entry.icon; const count = products.filter((item) => item.category === entry.id).length; return (
+                <button key={entry.id} className={`category-card ${category === entry.id ? "active" : ""}`} onClick={() => chooseCategory(entry.id)}>
+                  <span className={`category-icon tone-${entry.tone}`}><Icon size={23} /></span><span><b>{entry.name}</b><small>{count} opções</small></span><ChevronRight size={18} />
+                </button>
+              ); })}
+            </div>
+            <div className="niche-block">
+              <span className="section-kicker">Passo 2</span>
+              <h3>Para qual tipo de negócio ou ocasião?</h3>
+              <div className="niche-grid">{niches.map((entry) => (
+                <button key={entry} className={niche === entry ? "niche active" : "niche"} onClick={() => chooseNiche(entry)}>
+                  {entry === "todos" ? "Todos os nichos" : entry}
+                </button>
+              ))}</div>
+            </div>
+          </div>}
 
           {query && suggestedCategories.length > 0 && <div className="smart-suggestions"><Sparkles size={17} /><span>Talvez esteja procurando:</span>{suggestedCategories.map((entry) => <button key={entry.id} onClick={() => { setCategory(entry.id); setQuery(""); }}>{entry.name}</button>)}</div>}
 
@@ -307,7 +361,7 @@ function App() {
         </section>
 
         <section className="how" id="como-funciona">
-          <div className="how-copy"><span className="section-kicker">Feito sob medida</span><h2>Não encontrou exatamente como imaginou?</h2><p>Grande parte dos projetos de comunicação visual varia em tamanho, material, acabamento e instalação. Envie sua ideia e a equipe ajuda a definir a melhor solução.</p><button onClick={() => askQuote("um projeto sob medida")}>Falar com um consultor <MessageCircle size={18} /></button></div>
+          <div className="how-copy"><span className="section-kicker">Atendimento totalmente personalizado</span><h2>Sua ideia não precisa estar pronta para começar.</h2><p>Conte o que você quer divulgar, onde pretende instalar e qual é o seu prazo. Um especialista da Área X ajuda a escolher material, medida, acabamento e a solução mais adequada.</p><div className="service-badge"><Headphones size={23} /><span><b>Conversa direta com a equipe</b><small>Sem formulário complicado e sem resposta automática</small></span></div><button onClick={() => askQuote("um atendimento personalizado para meu projeto")}>Falar agora com um especialista <MessageCircle size={18} /></button></div>
           <div className="steps">{[["01", "Conte sua necessidade", "Informe o produto, medida, quantidade e prazo."], ["02", "Receba a orientação", "A equipe indica material, acabamento e melhor formato."], ["03", "Aprove a produção", "Após orçamento e aprovação, seu projeto entra em produção."]].map(([number, title, text]) => <div className="step" key={number}><span>{number}</span><div><h3>{title}</h3><p>{text}</p></div><CheckCircle2 size={22} /></div>)}</div>
         </section>
       </main>
