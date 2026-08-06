@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Search, X, ArrowRight, Building2, SignpostBig, Sticker, Image,
   Printer, BriefcaseBusiness, Store, PartyPopper, PackageOpen, PanelsTopLeft,
   Car, Gift, Settings2, Sparkles, CheckCircle2, MessageCircle, ChevronRight,
   ChevronDown, SlidersHorizontal, Headphones
 } from "lucide-react";
+import Personalization, { canPersonalize } from "./Personalization";
 
 const WHATSAPP = "https://wa.me/5598984337544?text=";
 
@@ -220,6 +221,10 @@ function ProductArtwork({ item }) {
 }
 
 function App() {
+  const [personalizing, setPersonalizing] = useState(() => {
+    const id = new URLSearchParams(window.location.search).get("personalizar");
+    return products.find((item) => item.id === id) || null;
+  });
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("todos");
   const [niche, setNiche] = useState("todos");
@@ -258,6 +263,29 @@ function App() {
     window.setTimeout(() => document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" }), 50);
   };
   const askQuote = (name) => window.open(`${WHATSAPP}${encodeURIComponent(`Olá! Gostaria de solicitar um orçamento para ${name}.`)}`, "_blank", "noopener,noreferrer");
+
+  useEffect(() => {
+    const handleNavigation = () => {
+      const id = new URLSearchParams(window.location.search).get("personalizar");
+      setPersonalizing(products.find((item) => item.id === id) || null);
+    };
+    window.addEventListener("popstate", handleNavigation);
+    return () => window.removeEventListener("popstate", handleNavigation);
+  }, []);
+
+  const openPersonalization = (item) => {
+    window.history.pushState({}, "", `?personalizar=${item.id}`);
+    setPersonalizing(item);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const closePersonalization = () => {
+    window.history.pushState({}, "", window.location.pathname);
+    setPersonalizing(null);
+    window.setTimeout(() => document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  if (personalizing) return <Personalization product={personalizing} onBack={closePersonalization} />;
 
   return (
     <div className="site-shell">
@@ -354,7 +382,7 @@ function App() {
             const categoryData = categories.find((entry) => entry.id === item.category);
             return <article className="product-card" key={item.id}>
               <ProductArtwork item={item} />
-              <div className="product-content"><div className="product-meta"><span>{categoryData?.name}</span>{item.featured && <b>Destaque</b>}</div><h3>{item.name}</h3><p>{item.description}</p><div className="product-footer"><small>{item.niche}</small><button onClick={() => askQuote(item.name)}>Orçar <ArrowRight size={16} /></button></div></div>
+              <div className="product-content"><div className="product-meta"><span>{categoryData?.name}</span>{item.featured && <b>Destaque</b>}</div><h3>{item.name}</h3><p>{item.description}</p><div className="product-footer"><small>{item.niche}</small>{canPersonalize(item) ? <button onClick={() => openPersonalization(item)}>Personalizar <ArrowRight size={16} /></button> : <button onClick={() => askQuote(item.name)}>Orçar <ArrowRight size={16} /></button>}</div></div>
             </article>;
           })}</div> : <div className="empty-state"><Search size={38} /><h3>Não encontramos esse item</h3><p>Tente outro termo ou fale com a equipe. A Área X também desenvolve projetos personalizados.</p><button onClick={() => askQuote(query || "um produto personalizado")}>Consultar atendimento</button><button className="secondary" onClick={resetFilters}>Limpar filtros</button></div>}
           {ranked.length > visibleCount && <button className="load-more" onClick={() => setVisibleCount((count) => count + 24)}>Ver mais produtos <ArrowRight size={17} /></button>}
